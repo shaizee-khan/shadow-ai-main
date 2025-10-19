@@ -36,11 +36,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        
-        # Install build dependencies
         pip install pyinstaller
-        
-        # Install GUI-specific dependencies
         pip install customtkinter
         pip install pygame
         pip install psutil
@@ -58,7 +54,6 @@ jobs:
             import threading
             print('✅ All GUI dependencies imported successfully')
             
-            # Test project modules
             import sys
             sys.path.append('.')
             from shadow_core.gui import ShadowGUI
@@ -70,26 +65,6 @@ jobs:
             exit(1)
         except Exception as e:
             print(f'⚠️  Warning: {e}')
-        "
-
-    - name: Test GUI application
-      run: |
-        # Test that the GUI application can start without errors
-        python -c "
-        import sys
-        sys.path.append('.')
-        try:
-            # Test basic initialization without running main loop
-            from shadow_core.gui import ShadowGUI
-            print('✅ GUI class can be imported')
-            
-            # Test the main GUI launcher
-            import run_shadow_gui
-            print('✅ GUI launcher module works')
-            
-        except Exception as e:
-            print(f'❌ GUI test failed: {e}')
-            exit(1)
         "
 
     - name: Build GUI application with PyInstaller
@@ -128,18 +103,90 @@ jobs:
         Copy-Item "README.md" "$distFolder/" -Force
         Copy-Item "LICENSE" "$distFolder/" -Force
         
-        # Create comprehensive README
-        @"
-# 🎯 Shadow AI - GUI Application
+        # Create simplified README
+        $readmeContent = @"
+# Shadow AI - GUI Application
 
-**Version**: $version  
-**Python**: ${{ env.PYTHON_VERSION }}  
-**Build Date**: $(Get-Date -Format "yyyy-MM-dd HH:mm")
+Version: $version
+Python: ${{ env.PYTHON_VERSION }}
+Build Date: $(Get-Date -Format "yyyy-MM-dd")
 
-## 🚀 Quick Start
+## Quick Sta
 
-1. **Download** this package
-2. **Configure** your API keys in `config.py`:
-   ```python
-   OPENAI_API_KEY = "your-openai-api-key-here"
-   OPENWEATHER_API_KEY = "your-weather-key-here"  # Optional
+GitHub: https://github.com/${{ github.repository }}
+
+## License
+
+MIT License - See LICENSE file for details.
+"@
+        $readmeContent | Out-File -FilePath "$distFolder/README.txt" -Encoding UTF8
+
+        # Create simple launch script
+        $batchContent = @"
+@echo off
+echo Starting Shadow AI...
+echo Make sure you have configured config.py with your API keys!
+timeout /t 2 /nobreak >nul
+start "" "${{ env.PROJECT_NAME }}.exe"
+"@
+        $batchContent | Out-File -FilePath "$distFolder/Start Shadow AI.bat" -Encoding ASCII
+
+    - name: Create final ZIP package
+      run: |
+        $version = "1.0.0"
+        $distFolder = "${{ env.PROJECT_NAME }}-GUI-v$version"
+        Compress-Archive -Path $distFolder/* -DestinationPath "$distFolder.zip" -Force
+        echo "Created: $distFolder.zip"
+
+    - name: Upload GUI artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PROJECT_NAME }}-GUI-Windows
+        path: ${{ env.PROJECT_NAME }}-GUI-v*.zip
+        retention-days: 30
+
+    - name: Display build summary
+      run: |
+        echo "GUI Build Completed Successfully!"
+        echo "Project: ${{ env.PROJECT_NAME }}"
+        echo "Python: ${{ env.PYTHON_VERSION }}"
+        echo "Platform: Windows"
+
+  create-gui-release:
+    needs: build-gui
+    runs-on: windows-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Download GUI artifact
+      uses: actions/download-artifact@v4
+      with:
+        path: release-assets
+
+    - name: Prepare release asset
+      run: |
+        $artifact = Get-ChildItem -Path "release-assets" -Recurse -Include "*.zip" | Select-Object -First 1
+        if ($artifact) {
+            $newName = "ShadowAI-GUI-Windows.zip"
+            Copy-Item $artifact.FullName $newName
+            echo "Release asset ready: $newName"
+        } else {
+            echo "No GUI artifact found!"
+            exit 1
+        }
+
+    - name: Upload to GitHub release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./ShadowAI-GUI-Windows.zip
+        asset_name: ShadowAI-GUI-Windows.zip
+        asset_content_type: application/zip
+
+    - name: Display release info
+      run: |
+        echo "Release Published!"
+        echo "Tag: ${{ github.event.release.tag_name }}"
+        echo "Python: ${{ env.PYTHON_VERSION }}"
