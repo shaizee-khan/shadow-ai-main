@@ -13,7 +13,7 @@ from pathlib import Path
 import threading
 import time
 
-class ShadowAInstaller:
+class ShadowAIInstaller:
     """Graphical installer for Shadow AI application"""
     
     def __init__(self):
@@ -398,8 +398,8 @@ By clicking "I Agree", you accept the terms of this agreement.
         ).pack(side=tk.RIGHT)
         
     def create_installation_page(self):
-        """Create installation progress page - FIXED TYPO HERE"""
-        self.install_frame = ctk.CTkFrame(self.notebook)  # FIXED: CTkFrame not CkFrame
+        """Create installation progress page"""
+        self.install_frame = ctk.CTkFrame(self.notebook)  # Fixed: CTkFrame
         self.notebook.add(self.install_frame, text="Installing")
         
         # Installation content
@@ -424,6 +424,15 @@ By clicking "I Agree", you accept the terms of this agreement.
             font=ctk.CTkFont(size=12)
         )
         self.status_label.pack(anchor="w", pady=5)
+        
+        # Detail label
+        self.detail_label = ctk.CTkLabel(
+            install_content,
+            text="",
+            font=ctk.CTkFont(size=10),
+            text_color="gray"
+        )
+        self.detail_label.pack(anchor="w", pady=2)
         
         # Log output
         log_frame = ctk.CTkFrame(install_content)
@@ -645,7 +654,7 @@ By clicking "I Agree", you accept the terms of this agreement.
 
 def main():
     """Main function to run the installer"""
-    installer = ShadowAInstaller()
+    installer = ShadowAIInstaller()  # Fixed: ShadowAIInstaller not ShadowAInstaller
     installer.run()
 
 if __name__ == "__main__":
