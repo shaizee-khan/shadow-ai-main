@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Shadow AI
 
 on:
   push:
@@ -10,13 +10,37 @@ jobs:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Verify files
+      run: |
+        echo "Project structure:"
+        dir /s /b *.py
+        echo "Assets:"
+        if exist assets ( dir assets )
+        
+    - name: Setup Python
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-    - run: pip install -r requirements.txt pyinstaller
-    - run: pyinstaller --onefile --name "ShadowAI"  --noconsole run_shadow_gui.py
-    - uses: actions/upload-artifact@v4
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build executable
+      run: |
+        pyinstaller ^
+          --onefile ^
+          --name "ShadowAI" ^
+           
+          --noconsole ^
+          run_shadow_gui.py
+
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
       with:
-        name: ShadowAI
+        name: ShadowAI-Windows
         path: dist/ShadowAI.exe
