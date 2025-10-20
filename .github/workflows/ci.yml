@@ -1,0 +1,155 @@
+name: Shadow AI CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly on Sunday
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: [3.8, 3.9, 3.10, 3.11]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install system dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y portaudio19-dev python3-pyaudio
+
+    - name: Install system dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install portaudio -y
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+
+    - name: Check code formatting
+      run: |
+        pip install black
+        black --check .
+
+    - name: Run basic syntax checks
+      run: |
+        python -m py_compile shadow_core/*.py
+        python -m py_compile *.py
+
+    - name: Test imports
+      run: |
+        python -c "import customtkinter; import openai; import pygame; import pyaudio; import numpy; import psutil; import requests; print('All imports successful')"
+
+    - name: Create test config
+      run: |
+        cp config.example.py config.py
+        echo "OPENAI_API_KEY = 'test-key'" >> config.py
+        echo "OPENWEATHER_API_KEY = 'test-weather-key'" >> config.py
+
+    - name: Run basic functionality test
+      run: |
+        python -c "
+        # Test basic module imports
+        try:
+            from shadow_core.brain import ShadowBrain
+            from shadow_core.gui import ShadowGUI
+            from shadow_core.nlu import NLU
+            print('✅ Core modules imported successfully')
+        except Exception as e:
+            print(f'❌ Import error: {e}')
+            exit(1)
+        "
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.python-version }}
+        path: |
+          *.log
+          *.txt
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run security scan
+      uses: pycqa/flake8@v4.0.1
+      with:
+        config-file: .flake8
+        
+    - name: Check for secrets
+      uses: gitleaks/gitleaks-action@v2
+      with:
+        config-path: .gitleaks.toml
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Check dependencies
+      run: |
+        pip install safety
+        safety check --full-report
+
+  build:
+    needs: [test, security, dependency-check]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pyinstaller
+        
+    - name: Create executable (Linux)
+      run: |
+        pyinstaller --onefile --name shadow-ai main.py
+        pyinstaller --onefile --name shadow-gui run_shadow_gui.py
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: shadow-ai-build
+        path: |
+          dist/
+          build/
