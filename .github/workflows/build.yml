@@ -1,0 +1,34 @@
+name: Build Shadow AI for Windows
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build executable
+      run: |
+        pyinstaller --onefile --name "ShadowAI" run_shadow_gui.py
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/ShadowAI.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
