@@ -1,18 +1,19 @@
-name: Build Shadow AI for Windows
+name: Build Windows Executable
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ['v*']  # Run when you create version tags
+  workflow_dispatch:  # Allow manual runs
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Python
+    - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
@@ -28,7 +29,6 @@ jobs:
 
     - name: Upload to Release
       uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
       with:
         files: dist/ShadowAI.exe
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
