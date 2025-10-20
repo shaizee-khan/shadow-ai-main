@@ -26,8 +26,7 @@ jobs:
 
     - name: Create single executable
       run: |
-        pyinstaller --onefile --name "ShadowAI"  --noconsole run_shadow_gui.py
-        # If you don't have an icon, use this instead:
+       
         # pyinstaller --onefile --name "ShadowAI" --noconsole run_shadow_gui.py
 
     - name: Create release archive
